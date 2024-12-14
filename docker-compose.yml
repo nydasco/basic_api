@@ -5,6 +5,9 @@ services:
       - "3000:3000"
     volumes:
       - ./src:/usr/src/app/src
+      - ./data:/app/data
+    env_file:
+      - .env
     environment:
       - NODE_ENV=development
     command: npm run dev
