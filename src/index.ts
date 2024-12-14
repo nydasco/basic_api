@@ -5,10 +5,9 @@ import * as duckdb from 'duckdb';
 import { config } from './config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { createRateLimiterMiddleware, loginLimiter, salesLimiter, closeRedisConnection } from './middleware/rate-limiter';
 import { RawSaleRecord, TransformedSaleRecord, transformSaleRecord } from './types/sales';
 
-
-// Types
 interface User {
   username: string;
   password: string;
@@ -18,17 +17,15 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
-// Load users from JSON file
 const usersFile = readFileSync(join(__dirname, '..', 'users.json'), 'utf8');
 const { users }: { users: User[] } = JSON.parse(usersFile);
 
-// Express setup
 const app = express();
-const port = config.port;
+const port = config.apiPort;
+const host = config.apiHost;
 
 app.use(express.json());
 
-// Database setup
 const db = new duckdb.Database(config.duckdbPath);
 const dbConnection = db.connect();
 
@@ -51,14 +48,14 @@ const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
 };
 
 // Login endpoint
-app.post('/login', async (req: Request, res: Response) => {
+app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Request, res: Response) => {
   const { username, password } = req.body;
   console.log('Login attempt for username:', username);
 
   const user = users.find((u: User) => u.username === username);
   if (!user) {
-    console.log('User not found:', username);
-    return res.status(401).json({ error: 'User not found' });
+    console.log('Invalid password or user:', username);
+    return res.status(401).json({ error: 'Invalid password or user' });
   }
 
   try {
@@ -66,8 +63,8 @@ app.post('/login', async (req: Request, res: Response) => {
     console.log('Password verification result:', validPassword);
     
     if (!validPassword) {
-      console.log('Invalid password for user:', username);
-      return res.status(401).json({ error: 'Invalid password' });
+      console.log('Invalid password or user:', username);
+      return res.status(401).json({ error: 'Invalid password or user' });
     }
 
     const token = jwt.sign({ username }, config.jwtSecret, { expiresIn: '1h' });
@@ -84,7 +81,9 @@ app.get('/healthcheck', (_req: Request, res: Response) => {
 });
 
 // Protected sales endpoint
-app.get('/api/sales', authenticateToken, (req: AuthRequest, res: Response) => {
+app.get('/api/sales', authenticateToken, 
+  createRateLimiterMiddleware(salesLimiter), 
+  (req: AuthRequest, res: Response) => {
   const query = `
     SELECT 
       CAST(dim_client._client_bk AS VARCHAR) as _client_bk,
@@ -121,10 +120,8 @@ app.get('/api/sales', authenticateToken, (req: AuthRequest, res: Response) => {
         return res.json({ data: [] });
       }
 
-      // Cast the result to RawSaleRecord[] after validating the shape
       const rawRecords = result as unknown as RawSaleRecord[];
       
-      // Transform the data using our transformation function
       const transformedData: TransformedSaleRecord[] = rawRecords.map(transformSaleRecord);
 
       res.json({ data: transformedData });
@@ -139,12 +136,18 @@ app.use((err: Error, req: Request, res: Response, next: Function) => {
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  dbConnection.close();
-  db.close();
-  process.exit(0);
+process.on('SIGTERM', async () => {
+  try {
+    await closeRedisConnection();
+    dbConnection.close();
+    db.close();
+    process.exit(0);
+  } catch (error) {
+    console.error('Error during shutdown:', error);
+    process.exit(1);
+  }
 });
 
 app.listen(port, () => {
-  console.log(`Server running at http://localhost:${port}`);
+  console.log(`Server running at http://${host}:${port}`);
 });
