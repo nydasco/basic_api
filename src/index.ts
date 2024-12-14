@@ -6,6 +6,7 @@
  * - DuckDB integration for sales data
  * - Redis for rate limiting
  * - Error handling and input validation
+ * - Swagger documentation
  */
 
 import express, { Request, Response } from 'express';
@@ -15,6 +16,9 @@ import * as duckdb from 'duckdb';
 import { config } from './config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import cors from 'cors';
+import swaggerUi from 'swagger-ui-express';
+import swaggerSpec from './swagger';
 import { 
   createRateLimiterMiddleware, 
   loginLimiter, 
@@ -52,16 +56,35 @@ const app = express();
 const port = config.apiPort;
 const host = config.apiHost;
 
+// Middleware setup
+app.use(cors({
+  origin: '*', // Be more restrictive in production
+  methods: ['GET', 'POST'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json());
+
+// Swagger setup
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
 // Load user data
 const usersFile = readFileSync(join(__dirname, '..', 'users.json'), 'utf8');
 const { users }: { users: User[] } = JSON.parse(usersFile);
 
-// Middleware setup
-app.use(express.json());
-
 // Database initialization
 const db = new duckdb.Database(config.duckdbPath);
 const dbConnection = db.connect();
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Authentication
+ *     description: User authentication endpoints
+ *   - name: Sales
+ *     description: Sales data management
+ *   - name: Health
+ *     description: API health monitoring
+ */
 
 /**
  * Authentication middleware
@@ -85,9 +108,47 @@ const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
 };
 
 /**
- * Login endpoint
- * Authenticates users and issues JWT tokens
- * Protected by rate limiting to prevent brute force attacks
+ * @swagger
+ * /login:
+ *   post:
+ *     summary: Authenticate user and get JWT token
+ *     description: |
+ *       Login with your username and password to receive a JWT token.
+ *       Use this token in the Authorize button above to access protected endpoints.
+ *       
+ *       Try it out:
+ *       1. Click the "Try it out" button below
+ *       2. Enter your credentials
+ *       3. Click "Execute"
+ *       4. Copy the token from the response
+ *       5. Click "Authorize" at the top and paste your token
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/LoginRequest'
+ *     responses:
+ *       200:
+ *         description: Successfully authenticated
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/LoginResponse'
+ *       401:
+ *         description: Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many login attempts
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/RateLimitError'
  */
 app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Request, res: Response) => {
   const { username, password } = req.body;
@@ -112,17 +173,102 @@ app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Reques
 });
 
 /**
- * Health check endpoint
- * Used for monitoring system status
+ * @swagger
+ * /healthcheck:
+ *   get:
+ *     summary: Check API health status
+ *     description: |
+ *       Simple endpoint to verify the API is running.
+ *       No authentication required.
+ *       
+ *       Click "Try it out" to test the API's health!
+ *     tags: [Health]
+ *     security: []
+ *     responses:
+ *       200:
+ *         description: API is healthy
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: ok
  */
 app.get('/healthcheck', (_req: Request, res: Response) => {
   res.send('ok');
 });
 
 /**
- * Sales data endpoint
- * Returns paginated sales records with optional date filtering
- * Protected by authentication and rate limiting
+ * @swagger
+ * /api/sales:
+ *   get:
+ *     summary: Get paginated sales records
+ *     description: |
+ *       Retrieve sales records with pagination and date filtering.
+ *       
+ *       To use this endpoint:
+ *       1. Make sure you're authenticated (click Authorize above)
+ *       2. Click "Try it out"
+ *       3. Set your desired parameters
+ *       4. Click "Execute"
+ *       
+ *       The response includes both the sales data and pagination information.
+ *     tags: [Sales]
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         example: "2024-01-01"
+ *         description: Filter sales from this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           default: 1
+ *         example: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: pageSize
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 1000
+ *           default: 100
+ *         example: 100
+ *         description: Number of records per page (max 1000)
+ *     responses:
+ *       200:
+ *         description: List of sales records
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaginatedSalesResponse'
+ *       400:
+ *         description: Invalid parameters
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       401:
+ *         description: Missing authentication token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       403:
+ *         description: Invalid or expired token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Error'
+ *       429:
+ *         description: Too many requests
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/RateLimitError'
  */
 app.get('/api/sales', 
   authenticateToken, 
@@ -261,4 +407,7 @@ process.on('SIGTERM', async () => {
 // Start server
 app.listen(port, () => {
   console.log(`Server running at http://${host}:${port}`);
+  console.log(`API documentation available at http://${host}:${port}/api-docs`);
 });
+
+export default app;
