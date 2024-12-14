@@ -1,13 +1,28 @@
 services:
-  app:
+  api:
     build: .
     ports:
-      - "3000:3000"
+      - "${API_PORT}:${API_PORT}"
     volumes:
       - ./src:/usr/src/app/src
       - ./data:/app/data
     env_file:
       - .env
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=${NODE_ENV}
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
     command: npm run dev
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    volumes:
+      - redis_data:/data
+    env_file:
+      - .env
+
+volumes:
+  redis_data:
