@@ -1,6 +1,3 @@
-// src/types/sales.ts
-
-// Types for the raw database response
 export interface RawSaleRecord {
   _client_bk: string;
   client_name: string;
@@ -14,7 +11,6 @@ export interface RawSaleRecord {
   sale_amount: number;
 }
 
-// Types for the transformed response
 export interface SalesResponse {
   data: TransformedSaleRecord[];
 }
@@ -38,7 +34,6 @@ export interface TransformedSaleRecord {
   saleAmount: number;
 }
 
-// Transform function
 export const transformSaleRecord = (raw: RawSaleRecord): TransformedSaleRecord => ({
   client: {
     id: raw._client_bk,

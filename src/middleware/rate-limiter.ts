@@ -29,7 +29,6 @@ const redis = new Redis({
     duration: config.saleDuration,
   });
 
-// Rate limiting middleware factory
 const createRateLimiterMiddleware = (limiter: RateLimiterRedis) => {
   return async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
     try {
@@ -50,7 +49,6 @@ const createRateLimiterMiddleware = (limiter: RateLimiterRedis) => {
   };
 };
 
-// Graceful shutdown handler
 const closeRedisConnection = async () => {
   await redis.quit();
 };

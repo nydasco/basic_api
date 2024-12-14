@@ -39,7 +39,6 @@ app.use(express.json());
 const db = new duckdb.Database(config.duckdbPath);
 const dbConnection = db.connect();
 
-// Authentication middleware
 const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -57,7 +56,6 @@ const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
   }
 };
 
-// Login endpoint
 app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
@@ -80,12 +78,10 @@ app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Reques
   }
 });
 
-// Healthcheck endpoint
 app.get('/healthcheck', (_req: Request, res: Response) => {
   res.send('ok');
 });
 
-// Protected sales endpoint with date filter and pagination
 app.get('/api/sales', authenticateToken, 
   createRateLimiterMiddleware(salesLimiter), 
   (req: AuthRequest, res: Response) => {
@@ -99,7 +95,6 @@ app.get('/api/sales', authenticateToken,
     return res.status(400).json({ error: 'Invalid date format. Please use YYYY-MM-DD' });
   }
 
-  // First, get total count
   const countQuery = `
     SELECT COUNT(*)::INT as total
     FROM dwh.main.fct_sale
@@ -119,7 +114,6 @@ app.get('/api/sales', authenticateToken,
     const totalRecords = (countResult[0] as any).total;
     const totalPages = Math.ceil(totalRecords / pageSize);
 
-    // Main query with pagination
     const query = `
       SELECT 
         CAST(dim_client._client_bk AS VARCHAR) as _client_bk,
@@ -187,13 +181,11 @@ app.get('/api/sales', authenticateToken,
   });
 });
 
-// Error handling middleware
 app.use((err: Error, req: Request, res: Response, next: Function) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something broke!' });
 });
 
-// Graceful shutdown
 process.on('SIGTERM', async () => {
   try {
     await closeRedisConnection();

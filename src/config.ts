@@ -1,4 +1,3 @@
-import { log } from 'console';
 import dotenv from 'dotenv';
 
 dotenv.config();
