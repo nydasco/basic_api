@@ -1,28 +1,36 @@
+# Docker Compose configuration for the sales API
+# Sets up two services:
+# 1. API server with Node.js
+# 2. Redis for rate limiting
+
 services:
+  # API Service Configuration
   api:
-    build: .
+    build: .                        # Build from local Dockerfile
     ports:
-      - "${API_PORT}:${API_PORT}"
+      - "${API_PORT}:${API_PORT}"   # Map container port to host port
     volumes:
-      - ./src:/usr/src/app/src
-      - ./data:/app/data
+      - ./src:/usr/src/app/src      # Mount source code for development
+      - ./data:/app/data            # Mount data directory
     env_file:
-      - .env
+      - .env                        # Load environment variables
     environment:
-      - NODE_ENV=${NODE_ENV}
-      - REDIS_HOST=redis
+      - NODE_ENV=${NODE_ENV}        # Set Node environment
+      - REDIS_HOST=redis            # Point to Redis service
     depends_on:
-      - redis
-    command: npm run dev
+      - redis                       # Ensure Redis starts first
+    command: npm run dev            # Development mode command
 
+  # Redis Service Configuration
   redis:
-    image: redis:alpine
+    image: redis:alpine            # Use lightweight Alpine-based Redis
     ports:
-      - "${REDIS_PORT}:${REDIS_PORT}"
+      - "${REDIS_PORT}:${REDIS_PORT}" # Map Redis port
     volumes:
-      - redis_data:/data
+      - redis_data:/data           # Persist Redis data
     env_file:
-      - .env
+      - .env                       # Load environment variables
 
+# Volume Definitions
 volumes:
-  redis_data:
+  redis_data:                      # Named volume for Redis persistence

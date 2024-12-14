@@ -1,3 +1,13 @@
+/**
+ * Main application entry point
+ * Implements a secure REST API with the following features:
+ * - JWT-based authentication
+ * - Rate limiting
+ * - DuckDB integration for sales data
+ * - Redis for rate limiting
+ * - Error handling and input validation
+ */
+
 import express, { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
@@ -5,9 +15,19 @@ import * as duckdb from 'duckdb';
 import { config } from './config';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { createRateLimiterMiddleware, loginLimiter, salesLimiter, closeRedisConnection } from './middleware/rate-limiter';
-import { RawSaleRecord, TransformedSaleRecord, transformSaleRecord } from './types/sales';
+import { 
+  createRateLimiterMiddleware, 
+  loginLimiter, 
+  salesLimiter, 
+  closeRedisConnection 
+} from './middleware/rate-limiter';
+import { 
+  RawSaleRecord, 
+  TransformedSaleRecord, 
+  transformSaleRecord 
+} from './types/sales';
 
+// Type definitions
 interface User {
   username: string;
   password: string;
@@ -27,18 +47,26 @@ interface PaginatedResponse {
   };
 }
 
-const usersFile = readFileSync(join(__dirname, '..', 'users.json'), 'utf8');
-const { users }: { users: User[] } = JSON.parse(usersFile);
-
+// Application initialization
 const app = express();
 const port = config.apiPort;
 const host = config.apiHost;
 
+// Load user data
+const usersFile = readFileSync(join(__dirname, '..', 'users.json'), 'utf8');
+const { users }: { users: User[] } = JSON.parse(usersFile);
+
+// Middleware setup
 app.use(express.json());
 
+// Database initialization
 const db = new duckdb.Database(config.duckdbPath);
 const dbConnection = db.connect();
 
+/**
+ * Authentication middleware
+ * Verifies JWT tokens and adds user information to the request
+ */
 const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -56,6 +84,11 @@ const authenticateToken = (req: AuthRequest, res: Response, next: Function) => {
   }
 };
 
+/**
+ * Login endpoint
+ * Authenticates users and issues JWT tokens
+ * Protected by rate limiting to prevent brute force attacks
+ */
 app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Request, res: Response) => {
   const { username, password } = req.body;
 
@@ -78,23 +111,36 @@ app.post('/login', createRateLimiterMiddleware(loginLimiter), async (req: Reques
   }
 });
 
+/**
+ * Health check endpoint
+ * Used for monitoring system status
+ */
 app.get('/healthcheck', (_req: Request, res: Response) => {
   res.send('ok');
 });
 
-app.get('/api/sales', authenticateToken, 
+/**
+ * Sales data endpoint
+ * Returns paginated sales records with optional date filtering
+ * Protected by authentication and rate limiting
+ */
+app.get('/api/sales', 
+  authenticateToken, 
   createRateLimiterMiddleware(salesLimiter), 
   (req: AuthRequest, res: Response) => {
     
+  // Parse and validate query parameters
   const startDate = req.query.startDate as string || '1900-01-01';
   const page = Math.max(1, parseInt(req.query.page as string) || 1);
   const pageSize = Math.max(1, Math.min(1000, parseInt(req.query.pageSize as string) || 100));
   const offset = (page - 1) * pageSize;
 
+  // Validate date format
   if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
     return res.status(400).json({ error: 'Invalid date format. Please use YYYY-MM-DD' });
   }
 
+  // Query to get total record count
   const countQuery = `
     SELECT COUNT(*)::INT as total
     FROM dwh.main.fct_sale
@@ -105,6 +151,7 @@ app.get('/api/sales', authenticateToken,
 
   const countStmt = dbConnection.prepare(countQuery);
   
+  // Execute count query
   countStmt.all(startDate, (countErr: Error | null, countResult: duckdb.TableData) => {
     if (countErr) {
       console.error('Count query error:', countErr);
@@ -114,6 +161,7 @@ app.get('/api/sales', authenticateToken,
     const totalRecords = (countResult[0] as any).total;
     const totalPages = Math.ceil(totalRecords / pageSize);
 
+    // Main query for sales data
     const query = `
       SELECT 
         CAST(dim_client._client_bk AS VARCHAR) as _client_bk,
@@ -145,12 +193,14 @@ app.get('/api/sales', authenticateToken,
 
     const stmt = dbConnection.prepare(query);
     
+    // Execute main query
     stmt.all(startDate, pageSize, offset, (err: Error | null, result: duckdb.TableData) => {
       if (err) {
         console.error('Query error:', err);
         return res.status(500).json({ error: 'Database error during execution' });
       }
 
+      // Handle empty results
       if (!result || !result.length) {
         return res.json({
           data: [],
@@ -163,9 +213,11 @@ app.get('/api/sales', authenticateToken,
         });
       }
 
+      // Transform raw records into API response format
       const rawRecords = result as unknown as RawSaleRecord[];
       const transformedData: TransformedSaleRecord[] = rawRecords.map(transformSaleRecord);
 
+      // Construct paginated response
       const response: PaginatedResponse = {
         data: transformedData,
         pagination: {
@@ -181,11 +233,19 @@ app.get('/api/sales', authenticateToken,
   });
 });
 
+/**
+ * Global error handler
+ * Catches unhandled errors and returns appropriate response
+ */
 app.use((err: Error, req: Request, res: Response, next: Function) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something broke!' });
 });
 
+/**
+ * Graceful shutdown handler
+ * Ensures proper cleanup of database and Redis connections
+ */
 process.on('SIGTERM', async () => {
   try {
     await closeRedisConnection();
@@ -198,6 +258,7 @@ process.on('SIGTERM', async () => {
   }
 });
 
+// Start server
 app.listen(port, () => {
   console.log(`Server running at http://${host}:${port}`);
 });
