@@ -1,14 +1,15 @@
 {
-    "compilerOptions": {
-      "target": "es2022",
-      "module": "commonjs",
-      "rootDir": "./src",
-      "outDir": "./dist",
-      "strict": true,
-      "esModuleInterop": true,
-      "skipLibCheck": true,
-      "forceConsistentCasingInFileNames": true
-    },
-    "include": ["src/**/*"],
-    "exclude": ["node_modules"]
-  }
+  // TypeScript Compiler Configuration
+  "compilerOptions": {
+    "target": "es2022",              // Use modern JavaScript features
+    "module": "commonjs",            // Use CommonJS module system
+    "rootDir": "./src",             // Source code directory
+    "outDir": "./dist",             // Compiled output directory
+    "strict": true,                 // Enable all strict type checking
+    "esModuleInterop": true,        // Enable clean imports from CommonJS modules
+    "skipLibCheck": true,           // Skip type checking of declaration files
+    "forceConsistentCasingInFileNames": true  // Ensure consistent file naming
+  },
+  "include": ["src/**/*"],          // Include all files in src directory
+  "exclude": ["node_modules"]        // Exclude node_modules from compilation
+}

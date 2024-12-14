@@ -1,44 +1,63 @@
-// src/types/sales.ts
+/**
+ * Type definitions for sales-related data structures
+ * Includes both raw database record types and transformed response types
+ */
 
-// Types for the raw database response
+/**
+ * Raw sale record structure as returned from the database
+ * Represents the direct mapping of database columns to TypeScript types
+ */
 export interface RawSaleRecord {
-  _client_bk: string;
-  client_name: string;
-  _employee_bk: string;
-  employee_name: string;
-  department_name: string;
-  region_name: string;
-  sale_date: string;
-  formatted_date: string;
-  month_year: string;
-  sale_amount: number;
+  _client_bk: string;      // Business key for client
+  client_name: string;     // Client's full name
+  _employee_bk: string;    // Business key for employee
+  employee_name: string;   // Employee's full name
+  department_name: string; // Employee's department
+  region_name: string;     // Sales region name
+  sale_date: string;       // Date of sale (YYYY-MM-DD)
+  formatted_date: string;  // Human-readable date format
+  month_year: string;      // Month and year of sale
+  sale_amount: number;     // Amount of the sale
 }
 
-// Types for the transformed response
+/**
+ * API response structure for sales data
+ * Wraps transformed sale records in a data property
+ */
 export interface SalesResponse {
   data: TransformedSaleRecord[];
 }
 
+/**
+ * Transformed sale record structure for API responses
+ * Organizes raw data into logical groupings for better readability
+ */
 export interface TransformedSaleRecord {
   client: {
-    id: string;
-    name: string;
+    id: string;    // Client's business key
+    name: string;  // Client's name
   };
   employee: {
-    id: string;
-    name: string;
-    department: string;
+    id: string;        // Employee's business key
+    name: string;      // Employee's name
+    department: string; // Employee's department
   };
   date: {
-    id: string;
-    formatted: string;
-    monthYear: string;
+    id: string;        // Raw date (YYYY-MM-DD)
+    formatted: string; // Formatted date string
+    monthYear: string; // Month and year
   };
-  region: string;
-  saleAmount: number;
+  region: string;     // Region name
+  saleAmount: number; // Sale amount
 }
 
-// Transform function
+/**
+ * Transforms a raw sale record from the database into the API response format
+ * Groups related fields together and renames properties for clarity
+ * 
+ * @param raw - Raw sale record from database
+ * @returns Transformed sale record for API response
+ */
 export const transformSaleRecord = (raw: RawSaleRecord): TransformedSaleRecord => ({
   client: {
     id: raw._client_bk,

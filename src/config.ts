@@ -1,53 +1,58 @@
-import { log } from 'console';
+/**
+ * Configuration management module for the API server
+ * Uses environment variables to configure all server settings
+ * 
+ * Environment Variables Required:
+ * - JWT_SECRET: Secret key for JWT token generation/validation
+ * - API_PORT: Port number for the API server
+ * - API_HOST: Host address for the API server
+ * - DUCKDB_PATH: File path to the DuckDB database
+ * - REDIS_PORT: Port number for Redis connection
+ * - REDIS_HOST: Hostname for Redis connection
+ * - LOGIN_ATTEMPT: Maximum number of login attempts allowed
+ * - LOGIN_DURATION: Duration (in seconds) for login attempt tracking
+ * - SALE_ATTEMPT: Maximum number of sale API requests allowed
+ * - SALE_DURATION: Duration (in seconds) for sale request tracking
+ */
+
 import dotenv from 'dotenv';
 
+// Load environment variables from .env file
 dotenv.config();
 
-if (!process.env.JWT_SECRET) {
-  throw new Error('JWT_SECRET is required in environment variables');
+// Required environment variables validation
+const requiredEnvVars = [
+  'JWT_SECRET',
+  'API_PORT',
+  'API_HOST',
+  'DUCKDB_PATH',
+  'REDIS_PORT',
+  'LOGIN_ATTEMPT',
+  'LOGIN_DURATION',
+  'SALE_ATTEMPT',
+  'SALE_DURATION'
+] as const;
+
+// Check for missing environment variables
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    throw new Error(`${envVar} is required in environment variables`);
+  }
 }
 
-if (!process.env.API_PORT) {
-  throw new Error('API_PORT is required in environment variables');
-}
-
-if (!process.env.API_HOST) {
-  throw new Error('API_HOST is required in environment variables');
-}
-
-if (!process.env.DUCKDB_PATH) {
-  throw new Error('DUCKDB_PATH is required in environment variables');
-}
-
-if (!process.env.REDIS_PORT) {
-  throw new Error('REDIS_PORT is required in environment variables');
-}
-
-if (!process.env.LOGIN_ATTEMPT) {
-  throw new Error('LOGIN_ATTEMPT is required in environment variables');
-}
-
-if (!process.env.LOGIN_DURATION) {
-  throw new Error('LOGIN_DURATION is required in environment variables');
-}
-
-if (!process.env.SALE_ATTEMPT) {
-  throw new Error('SALE_ATTEMPT is required in environment variables');
-}
-
-if (!process.env.SALE_DURATION) {
-  throw new Error('SALE_DURATION is required in environment variables');
-}
-
+/**
+ * Configuration object containing all server settings
+ * Values are parsed from environment variables with sensible defaults where appropriate
+ */
 export const config = {
-  jwtSecret: process.env.JWT_SECRET,
-  apiPort: process.env.API_PORT ? parseInt(process.env.API_PORT) : 3000,
+  jwtSecret: process.env.JWT_SECRET!,
+  apiPort: parseInt(process.env.API_PORT!) || 3000,
   apiHost: process.env.API_HOST || 'localhost',
-  duckdbPath: process.env.DUCKDB_PATH,
+  duckdbPath: process.env.DUCKDB_PATH!,
   redisHost: process.env.REDIS_HOST || 'localhost',
-  redisPort: process.env.REDIS_PORT ? parseInt(process.env.REDIS_PORT) : 6379,
-  loginAttempt: process.env.LOGIN_ATTEMPT ? parseInt(process.env.LOGIN_ATTEMPT) : 3,
-  loginDuration: process.env.LOGIN_DURATION ? parseInt(process.env.LOGIN_DURATION) : 60,
-  saleAttempt: process.env.SALE_ATTEMPT ? parseInt(process.env.SALE_ATTEMPT) : 100,
-  saleDuration: process.env.SALE_DURATION ? parseInt(process.env.SALE_DURATION) : 60,
+  redisPort: parseInt(process.env.REDIS_PORT!) || 6379,
+  loginAttempt: parseInt(process.env.LOGIN_ATTEMPT!) || 3,
+  loginDuration: parseInt(process.env.LOGIN_DURATION!) || 60,
+  saleAttempt: parseInt(process.env.SALE_ATTEMPT!) || 100,
+  saleDuration: parseInt(process.env.SALE_DURATION!) || 60,
 } as const;
