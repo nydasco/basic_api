@@ -21,7 +21,7 @@ That's it! Everything else is handled through Docker.
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:nydasco/basic_api.git
    cd basic_api
    ```
 
