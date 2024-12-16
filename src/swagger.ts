@@ -1,4 +1,5 @@
 import swaggerJsdoc from 'swagger-jsdoc';
+import { join } from 'path';
 
 const swaggerOptions = {
   definition: {
@@ -191,7 +192,7 @@ REST API for sales data management with authentication and rate limiting.
       }
     ]
   },
-  apis: ['./src/index.ts'], // Path to the API routes
+  apis: [join(__dirname, './routes/*.ts')],
 };
 
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
