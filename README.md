@@ -1,6 +1,6 @@
 # Sales API
 
-A TypeScript-based REST API for sales data management featuring authentication, rate limiting, and interactive API documentation.
+A TypeScript-based REST API for sales data analytics featuring authentication, rate limiting, and interactive API documentation.
 
 ## Features
 
