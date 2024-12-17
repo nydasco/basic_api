@@ -20,6 +20,12 @@ services:
     depends_on:
       - redis                       # Ensure Redis starts first
     command: npm run dev            # Development mode command
+    # Healthcheck configuration
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT}/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   # Redis Service Configuration
   redis:
