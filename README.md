@@ -21,7 +21,7 @@ That's it! Everything else is handled through Docker.
 
 1. Clone the repository:
    ```bash
-   git clone git@github.com:nydasco/basic_api.git
+   git clone https://github.com/nydasco/basic_api.git
    cd basic_api
    ```
 
@@ -89,7 +89,7 @@ basic_api/
 
 ## License
 
-ISC License
+GPL License
 
 ## Author
 
